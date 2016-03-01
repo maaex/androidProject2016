@@ -16,6 +16,7 @@ public class Spaceship extends Drawable {
     private Vector2 direction = new Vector2(0, -1);
     private float speed = 1;
     private Bitmap bitmap;
+    private int score;
 
     public Spaceship(Bitmap bitmap, Vector2 position) {
         this.worldPosition = position;
@@ -91,9 +92,22 @@ public class Spaceship extends Drawable {
     public float getSpeed() { return speed; }
     public void setSpeed(float speed) { this.speed = speed; }
 
+    /**
+     * Updates the players score.
+     * The score is based on the y-distance the player has travelled from the starting position.
+     * @param startingPosition
+     */
+    public void updateScore(Vector2 startingPosition) {
+        score = (int) -(worldPosition.getY() - startingPosition.getY());
+    }
+
 
     // The following must be overridden by Drawable, but are not used for anything.
     @Override public void setAlpha(int alpha) { }
     @Override public void setColorFilter(ColorFilter colorFilter) { }
     @Override public int getOpacity() { return 0; }
+
+    public int getScore() {
+        return score;
+    }
 }

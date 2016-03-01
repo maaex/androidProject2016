@@ -1,16 +1,23 @@
 package sevon.max.androidspaceship;
 
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
 import android.graphics.Rect;
 import android.os.AsyncTask;
 import android.util.AttributeSet;
 import android.view.View;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Random;
@@ -34,10 +41,11 @@ public class World extends View {
 
     Bitmap spaceShipBitmap;
     private Spaceship spaceship;
+    private static final Vector2 STARTING_POSITION = new Vector2(WorldCell.WIDTH / 2, WorldCell.HEIGHT / 2);
     private Paint clearPaint = new Paint();       // Paint used when clearing the screen.
     private Paint textPaint = new Paint();       // Paint used to draw text.
 
-    private static final int[] LEVEL_LAYOUT = {R.drawable.start, R.drawable.cell_0, R.drawable.cell_1, R.drawable.cell_2};
+    private static TypedArray BACKGROUND_DRAWABLES;
     private LinkedList<WorldCell> loadedCells = new LinkedList<>();
     private int currentCellNumber;  // used to determine whether a new cell should be loaded.
     private long timeAtStart;       // used for rng seed
@@ -71,6 +79,9 @@ public class World extends View {
         SCALE_FACTOR_X = SCREEN_WIDTH / GAME_WIDTH;
         SCALE_FACTOR_Y = SCREEN_HEIGHT / GAME_HEIGHT;
 
+        // Load array of background images.
+        BACKGROUND_DRAWABLES = getResources().obtainTypedArray(R.array.background_drawables);
+
         // Load spaceship bitmap.
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inPreferredConfig = Bitmap.Config.RGB_565;
@@ -84,8 +95,7 @@ public class World extends View {
 
     public void restart() {
         // Place spaceship at the center of the first cell.
-        Vector2 position = new Vector2(WorldCell.WIDTH / 2, WorldCell.HEIGHT / 2);
-        spaceship = new Spaceship(spaceShipBitmap, position);
+        spaceship = new Spaceship(spaceShipBitmap, STARTING_POSITION);
 
         loadedCells = new LinkedList<>();
         loadedCells.addLast(createWorldCell(new Vector2(0, 0), 0));
@@ -108,6 +118,7 @@ public class World extends View {
     public boolean update(float accelerationX, float accelerationY) {
         Vector2 moveDirection = Vector2.normalize(new Vector2(accelerationX, accelerationY));
         spaceship.move(moveDirection);
+        spaceship.updateScore(STARTING_POSITION);
 
         // Check if spaceship has moved on to another cell.
         if(currentCellNumber != getCurrentCell().getCellNumber()) {
@@ -142,7 +153,9 @@ public class World extends View {
             while(!getCurrentCell().isBitmapLoaded()) { }
         }
 
+        // Check if spaceship has crashed.
         if(spaceship.checkCollision(this)) {
+            // It has... Game over!
             spaceship.setSpeed(0);
             notifyListeners(Event.SPACESHIP_CRASH);
             // wait a bit for listeners to do their thing.
@@ -151,10 +164,23 @@ public class World extends View {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+
+            updateHighScores();
             return false;
         }
 
         return true;
+    }
+
+    private void updateHighScores() {
+        ScoreList highScores = ScoreList.load(getContext());
+        highScores.add(spaceship.getScore());
+        try {
+            highScores.save(getContext());
+        } catch (IOException e) {
+            System.out.println("Unable to save high scores...");
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -177,7 +203,7 @@ public class World extends View {
                 spaceship.draw(canvas);
 
             // Draw score text.
-            canvas.drawText("Score: " + getCurrentCell().getCellNumber() * 10, scoreTextPositionX, scoreTextPositionY, textPaint);
+            canvas.drawText("Score: " + spaceship.getScore(), scoreTextPositionX, scoreTextPositionY, textPaint);
 
             // Draw speed text.
             canvas.drawText("Speed: " + spaceship.getSpeed(), speedTextPositionX, speedTextPositionY, textPaint);
@@ -229,14 +255,16 @@ public class World extends View {
      * loaded afterwards.
      */
     private WorldCell createWorldCell(Vector2 worldPosition, int cellNumber) {
+        rng.setSeed(timeAtStart + cellNumber);
+        int color = ColorGenerator.getRandomColor(rng.nextInt());
         int bitmapId = R.drawable.start;
 
         if(cellNumber != 0) {
-            rng.setSeed(timeAtStart + cellNumber);
-            bitmapId = LEVEL_LAYOUT[rng.nextInt(LEVEL_LAYOUT.length - 1) + 1];    // +1 to skip the "start" cell.
+            //bitmapId = LEVEL_LAYOUT[rng.nextInt(LEVEL_LAYOUT.length - 1) + 1];    // +1 to skip the "start" cell.
+            bitmapId = BACKGROUND_DRAWABLES.getResourceId(rng.nextInt(BACKGROUND_DRAWABLES.length() - 1) + 1, 0);
         }
 
-        return new WorldCell(worldPosition, bitmapId, cellNumber);
+        return new WorldCell(worldPosition, bitmapId, cellNumber, color);
     }
 
     /**
@@ -297,6 +325,7 @@ public class World extends View {
         private Bitmap bitmap;
         private Vector2 worldPosition;
         private Rect bitmapBoundingRect;
+        private Paint paint = new Paint();
 
         /**
          * Creates a new WorldCell object at the specified position.
@@ -317,10 +346,13 @@ public class World extends View {
             bitmapBoundingRect = new Rect(0, 0, factoryOptions.outWidth, factoryOptions.outHeight);
         }
 
-        public WorldCell(Vector2 worldPosition, int bitmapId, int cellNumber) {
+        public WorldCell(Vector2 worldPosition, int bitmapId, int cellNumber, int color) {
             this.worldPosition = worldPosition;
             this.bitmapId = bitmapId;
             this.cellNumber = cellNumber;
+
+            // Set a random color for the graphics of the cell.
+            paint.setColorFilter(new PorterDuffColorFilter(color, PorterDuff.Mode.SRC_ATOP));
 
             // Create a bounding rectangle of bitmap file. This value is constant so we only need
             // to load it once. It is used when drawing.
@@ -387,10 +419,8 @@ public class World extends View {
                     }
 
                     // Draw
-                    canvas.drawBitmap(bitmap, translatedViewRect, drawRect, null);
+                    canvas.drawBitmap(bitmap, translatedViewRect, drawRect, paint);
                 }
-
-
             }
         }
 
@@ -443,6 +473,21 @@ public class World extends View {
          * @return Returns the cell number of this WorldCell.
          */
         public int getCellNumber() { return cellNumber; }
+    }
+
+    private static class ColorGenerator {
+
+        private static Random rng = new Random();
+
+        public static int getRandomColor(long seed) {
+            rng.setSeed(seed);
+            int red, blue, green;
+            red = rng.nextInt(50) + 20;
+            blue = rng.nextInt(50) + 20;
+            green = rng.nextInt(50) + 20;
+
+            return Color.argb(255, red, blue, green);
+        }
     }
 
     /**

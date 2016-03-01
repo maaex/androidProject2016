@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <array
+        name="background_drawables">
+        <item>@drawable/start</item>
+        <item>@drawable/cell_0</item>
+        <item>@drawable/cell_1</item>
+        <item>@drawable/cell_2</item>
+    </array>
+</resources>

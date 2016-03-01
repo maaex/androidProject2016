@@ -6,18 +6,26 @@
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:supportsRtl="true"
-        android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
         android:largeHeap="true"
-        >
-        <activity android:name=".MainActivity"
-            android:screenOrientation="nosensor">
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
+        <activity
+            android:name=".MenuActivity"
+            android:launchMode="singleInstance">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".MainActivity"
+            android:screenOrientation="locked"
+            android:label="@string/app_name"
+            android:launchMode="singleInstance"/>
+        <activity
+            android:name=".HighScoreActivity"
+            android:label="@string/app_name"
+            android:launchMode="singleInstance"/>
     </application>
 
 </manifest>

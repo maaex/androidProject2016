@@ -1,3 +1,5 @@
 <resources>
-    <string name="app_name">AndroidSpaceShip</string>
+    <string name="app_name">SpaceDroid</string>
+    <string name="title_activity_menu">MenuActivity</string>
+    <string name="title_activity_high_score">HighScoreActivity</string>
 </resources>

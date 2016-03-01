@@ -1,6 +1,7 @@
 package sevon.max.androidspaceship;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -65,6 +66,11 @@ public class MainActivity extends Activity {
         super.onResume();
     }
 
+    @Override
+    public void onBackPressed() {
+        finish();
+    }
+
     /**
      * This method creates and starts the game loop. The loop runs on a separate thread from the UI
      * thread to not prevent the UI from redrawing itself.
@@ -73,8 +79,8 @@ public class MainActivity extends Activity {
         gameThread = new Thread(new Runnable() {
             @Override
             public void run() {
-                boolean quit = false;
-                while(!quit) {
+                //boolean quit = false;
+                //while(!quit) {
                     world.restart();
                     while(true) {
                         // get current time
@@ -82,7 +88,16 @@ public class MainActivity extends Activity {
 
                         // Update game. If update returns false it means player has died.
                         if(world.update(accelerationX, accelerationY) == false) {
+
+                            // Go back to main menu. This needs to be done on UI thread.
+                            /*runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    finish();
+                                }
+                            });*/
                             break;
+
                         }
 
                         // Redraw
@@ -110,7 +125,7 @@ public class MainActivity extends Activity {
                             }
                         }
                     } // while
-                } // while
+                //} // while
                 finish();
             }
         });
